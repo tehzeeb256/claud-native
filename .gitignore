@@ -1,0 +1,13 @@
+# python environment and cash 
+pycash/
+*.pyc
+.venv/
+venv/
+
+# environment variables and secrets (for security )
+.env
+*.env
+# opreating system and ideas 
+.vscode/
+.idea/
+.ds_store
