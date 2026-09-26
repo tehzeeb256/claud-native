@@ -1,0 +1,20 @@
+# git 
+.git
+.gitignore
+
+# Python Virtual Environment & Cash
+.venv
+venv
+__pycash__
+*.pyc
+*.pyo
+*.pyd
+
+# Environment Variables & Secrets
+.env
+*.env
+
+# Documentation & IDE
+README.md
+.vscode
+.idea
