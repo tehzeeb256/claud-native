@@ -20,3 +20,6 @@ COPY app/ ./app
 # security 
 RUN useradd -m -u 1001 appuser
 USER appuser
+
+# port
+EXPOSE 8000
