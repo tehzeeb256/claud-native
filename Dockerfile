@@ -1,6 +1,6 @@
 # image
 
-FORM python:3.12-slim   
+FROM python:3.12-slim   
 
 # Environment
 
@@ -25,4 +25,4 @@ USER appuser
 EXPOSE 8000
 
 # container start command 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", ]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
