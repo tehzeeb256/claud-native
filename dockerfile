@@ -1,1 +1,8 @@
-FORM python:3.12-slim
+# image
+
+FORM python:3.12-slim   
+
+# Environment
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+PYTHONUNBUFFERED=1 
