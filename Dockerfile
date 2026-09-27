@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt  
 
 # copy project 
-COPY app/ ./app
+COPY --Chown=appuser:appuser app/ ./app
 
 # security 
 RUN useradd -m -u 1001 appuser
