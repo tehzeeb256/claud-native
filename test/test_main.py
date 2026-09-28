@@ -20,3 +20,19 @@ def test_liveness_probe():
     data = response.json()
     assert data["status"] == "healthy"
     assert "timestamp" in data 
+
+# test readiness probe 
+def test_readiness_probe():
+    response = client.get("/readyz")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ready"
+
+# test system info endpoint 
+def test_system_info():
+    response = client.get("/api/vi/info")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["app_name"] == "cloud-native platform"
+    assert "hostname" in data 
+    assert "uptime_seconds" in data 
