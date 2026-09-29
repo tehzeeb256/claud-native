@@ -30,7 +30,7 @@ def test_readiness_probe():
 
 # test system info endpoint 
 def test_system_info():
-    response = client.get("/api/vi/info")
+    response = client.get("/api/v1/info")
     assert response.status_code == 200
     data = response.json()
     assert data["app_name"] == "cloud-native platform"

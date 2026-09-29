@@ -14,8 +14,8 @@ START_TIME = time.time()
 def read_root():
     return{
         "message": "welcome to cloud-native platform",
-        "versiom": "1.0.0",
-        "status":"opreational"
+        "version": "1.0.0",
+        "status":"operational"
     }
 
 # devops leveness (docker/kubernetes) 2
