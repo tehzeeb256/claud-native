@@ -10,7 +10,7 @@ spec:
 
 #selector for pods
     selector:
-      matchlabels:
+      matchLabels:
           app: claud-native
 
 # pods template
@@ -22,11 +22,11 @@ spec:
           containers:
             - name: claud-native-app
               image: tehzeeb256/claud-native:latest
-              imagepullpolicy: Always
+              imagePullPolicy: Always
 
 
               ports:
-                - containerport: 8080
+                - containerPort: 8000
 
 # resource limits 
 resources:
@@ -39,17 +39,17 @@ resources:
 
 
 # liveness probe (self healing)
-livenesssProbe:
+livenessProbe:
   httpGet:
     path: /healthz
-    port: 8080
+    port: 8000
   initialDelaySeconds: 5
   periodSeconds: 10
 
 # Readiness probe (traffic routing)
 readinessProbe:
   httpGet:
-   path: /readiness
-   port: 8080
+   path: /readyz
+   port: 8000
 initialDelaySeconds: 3
 periodSeconds: 5 
