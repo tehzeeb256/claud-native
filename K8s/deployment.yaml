@@ -18,7 +18,7 @@ spec:
       metadata:
         labels:
           app: claud-native
-        spec:
+      spec:
           containers:
             - name: claud-native-app
               image: tehzeeb256/claud-native:latest
