@@ -26,25 +26,33 @@ If you want to run this in your computer or laptops
 
 # 1: Clone this repo
 ---bash 
-git clone https://github.com/tehzeeb256/claud-native.git
-cd claud-native
+* git clone https://github.com/tehzeeb256/claud-native.git
+* cd claud-native
 
 
 # setup packeges and environments 
 
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+* python3 -m venv .venv
+* source .venv/bin/activate
+* pip install -r requirements.txt
+
+
 
 
 # run the development server 
 .venv/bin/python3 -m uvicorn app.main:app --reload
 
+
+
+
 # check the endpoint of your browser 
-Welcome page: http://127.0.0.1:8000
-Kubernetes Health Probe: http://127.0.0.1:8000/healthz
-Interactive API Docs: http://127.0.0.1:8000/docs
+* Welcome page: http://127.0.0.1:8000
+* Kubernetes Health Probe: http://127.0.0.1:8000/healthz
+* Interactive API Docs: http://127.0.0.1:8000/docs
 
 
-AUTHOR
-. Tehzeeb -- learning in public and mastring in devops 
+
+
+# AUTHOR
+
+. Tehzeeb -- learning in public and mastring in devops.  
