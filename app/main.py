@@ -3,6 +3,7 @@ import socket
 import secrets
 from typing import Dict, List
 from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 
  
 app = FastAPI(
@@ -13,13 +14,10 @@ app = FastAPI(
 START_TIME = time.time()
 
 # Welcome endpoint
-@app.get("/", tags=["general"])
+@app.get("/", response_class=FileResponse, tags=["general"])
 def read_root():
-    return {
-        "message": "welcome to cloud-native platform",
-        "version": "1.0.0",
-        "status": "operational"
-    }
+    """GhostWire Stealth Web UI serve karna"""
+    return FileResponse("app/static/index.html")
 
 # Kubernetes Liveness Probe (Self-healing)
 @app.get("/healthz", status_code=status.HTTP_200_OK, tags=["devops probes"])

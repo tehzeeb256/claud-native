@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostWire | Zero-Trace Ephemeral Chat</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: #0a0a0c; color: #e4e4e7; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
+        .card { background: #121216; border: 1px solid #27272a; border-radius: 12px; width: 100%; max-width: 480px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { font-size: 20px; font-weight: 700; color: #fafafa; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .subtitle { font-size: 13px; color: #a1a1aa; margin-bottom: 25px; }
+        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .btn-primary { background: #6366f1; color: white; margin-bottom: 15px; }
+        .btn-primary:hover { background: #4f46e5; }
+        .btn-danger { background: #dc2626; color: white; margin-top: 15px; }
+        .btn-danger:hover { background: #b91c1c; }
+        .input-group { display: flex; gap: 8px; margin-top: 10px; }
+        input[type="text"] { width: 100%; background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; color: white; font-size: 14px; outline: none; }
+        input[type="text"]:focus { border-color: #6366f1; }
+        .chat-box { height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
+        .msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+        .msg-me { align-self: flex-end; background: #312e81; color: #e0e7ff; }
+        .msg-them { align-self: flex-start; background: #27272a; color: #f4f4f5; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #18181b; border: 1px solid #27272a; color: #10b981; margin-bottom: 15px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- 1. LAUNCHPAD SCREEN (Home) -->
+    <div id="screen-launchpad" class="card">
+        <h1>🔥 GhostWire</h1>
+        <p class="subtitle">Zero-Trace • In-Memory • E2E Encrypted</p>
+        
+        <button id="btn-create" class="btn btn-primary" onclick="createRoom()">Create Ephemeral Room</button>
+        
+        <div style="text-align: center; color: #71717a; font-size: 12px; margin: 10px 0;">OR JOIN ROOM</div>
+        
+        <div class="input-group">
+            <input type="text" id="input-room-id" placeholder="Enter Room ID...">
+            <button class="btn btn-primary" style="width: auto; padding: 0 20px;" onclick="joinRoomManual()">Join</button>
+        </div>
+    </div>
+
+    <!-- 2. ACTIVE CHAT SCREEN -->
+    <div id="screen-chat" class="card hidden">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="font-size: 16px;">Room: <span id="display-room-id" style="color: #6366f1;"></span></h1>
+            <div class="badge" id="status-badge">🟢 Connecting...</div>
+        </div>
+
+        <button class="btn" style="background: #27272a; color: #d4d4d8; font-size: 12px; padding: 8px; margin-bottom: 10px;" onclick="copyInviteLink()">📋 Copy Secret Invite Link</button>
+
+        <div class="chat-box" id="chat-box"></div>
+
+        <div class="input-group">
+            <input type="text" id="input-msg" placeholder="Type secret message..." onkeypress="handleEnter(event)">
+            <button class="btn btn-primary" style="width: auto; padding: 0 20px;" onclick="sendSecretMessage()">Send</button>
+        </div>
+
+        <button class="btn btn-danger" onclick="burnRoom()">🔥 Nuclear Burn (Destroy Room)</button>
+    </div>
+
+    <!-- 3. ASH SCREEN (Burned) -->
+    <div id="screen-burned" class="card hidden" style="text-align: center; padding: 40px 20px;">
+        <h1 style="justify-content: center; color: #ef4444;">🔥 Room Incinerated</h1>
+        <p class="subtitle" style="margin-top: 10px;">All memory wiped. Zero traces remain in existence.</p>
+        <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.reload()">Create New Room</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentRoomId = null;
+        let cryptoKey = null;
+
+        // --- WEB CRYPTO E2EE (AES-256-GCM) ---
+        async function generateCryptoKey() {
+            return await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+        }
+
+        async function exportKeyToBase64(key) {
+            const raw = await window.crypto.subtle.exportKey("raw", key);
+            return btoa(String.fromCharCode(...new Uint8Array(raw)));
+        }
+
+        async function importKeyFromBase64(base64) {
+            const raw = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            return await window.crypto.subtle.importKey("raw", raw, { name: "AES-GCM" }, true, ["encrypt", "decrypt"]);
+        }
+
+        async function encryptText(plaintext, key) {
+            const iv = window.crypto.getRandomValues(new Uint8Array(12));
+            const encoded = new TextEncoder().encode(plaintext);
+            const cipher = await window.crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, encoded);
+            return JSON.stringify({
+                iv: btoa(String.fromCharCode(...iv)),
+                data: btoa(String.fromCharCode(...new Uint8Array(cipher)))
+            });
+        }
+
+        async function decryptText(ciphertextJSON, key) {
+            const payload = JSON.parse(ciphertextJSON);
+            const iv = Uint8Array.from(atob(payload.iv), c => c.charCodeAt(0));
+            const data = Uint8Array.from(atob(payload.data), c => c.charCodeAt(0));
+            const decrypted = await window.crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, data);
+            return new TextDecoder().decode(decrypted);
+        }
+
+        // --- ROOM MANAGEMENT ---
+        async function createRoom() {
+            const res = await fetch("/api/room/create", { method: "POST" });
+            const data = await res.json();
+            currentRoomId = data.room_id;
+            
+            // Generate Key in browser (NEVER sent to server)
+            cryptoKey = await generateCryptoKey();
+            const keyStr = await exportKeyToBase64(cryptoKey);
+            
+            // Store key in URL Hash (#key)
+            window.location.hash = keyStr;
+            startChat();
+        }
+
+        async function joinRoomManual() {
+            const id = document.getElementById("input-room-id").value.trim();
+            if (!id) return alert("Enter Room ID");
+            currentRoomId = id;
+            if (window.location.hash) {
+                cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
+            }
+            startChat();
+        }
+
+        function startChat() {
+            document.getElementById("screen-launchpad").classList.add("hidden");
+            document.getElementById("screen-chat").classList.remove("hidden");
+            document.getElementById("display-room-id").textContent = currentRoomId;
+
+            // Connect WebSocket
+            const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws/${currentRoomId}`);
+
+            ws.onopen = () => {
+                document.getElementById("status-badge").textContent = "🟢 Connected (Encrypted)";
+            };
+
+            ws.onmessage = async (event) => {
+                const raw = event.data;
+                if (raw.includes("room_burned")) {
+                    triggerBurnScreen();
+                    return;
+                }
+                try {
+                    const decrypted = await decryptText(raw, cryptoKey);
+                    addMessage(decrypted, "them");
+                } catch(e) {
+                    console.error("Decryption error", e);
+                }
+            };
+
+            ws.onclose = () => {
+                triggerBurnScreen();
+            };
+        }
+
+        async function sendSecretMessage() {
+            const input = document.getElementById("input-msg");
+            const text = input.value.trim();
+            if (!text || !ws) return;
+
+            // Encrypt in browser before sending!
+            const encrypted = await encryptText(text, cryptoKey);
+            ws.send(encrypted);
+
+            addMessage(text, "me");
+            input.value = "";
+        }
+
+        function addMessage(text, type) {
+            const box = document.getElementById("chat-box");
+            const msg = document.createElement("div");
+            msg.className = `msg msg-${type}`;
+            // XSS Prevention: Strict textContent (Never innerHTML)
+            msg.textContent = text;
+            box.appendChild(msg);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function handleEnter(e) {
+            if (e.key === "Enter") sendSecretMessage();
+        }
+
+        function copyInviteLink() {
+            navigator.clipboard.writeText(window.location.href);
+            alert("Secret invite link copied to clipboard! Send to your peer.");
+        }
+
+        function burnRoom() {
+            if (ws) ws.close();
+            triggerBurnScreen();
+        }
+
+        function triggerBurnScreen() {
+            document.getElementById("screen-chat").classList.add("hidden");
+            document.getElementById("screen-burned").classList.remove("hidden");
+        }
+    </script>
+</body>
+</html>
