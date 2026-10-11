@@ -33,7 +33,7 @@ spec:
                requests:
                    memory: "64Mi"
                    cpu: "50m"
-              limits:
+               limits:
                    memory: "128Mi"
                    cpu: "200m"
 
@@ -43,13 +43,13 @@ spec:
                httpGet:
                    path: /healthz
                    port: 8000
-              initialDelaySeconds: 5
-              periodSeconds: 10
+               initialDelaySeconds: 5
+               periodSeconds: 10
 
 # Readiness probe (traffic routing)
               readinessProbe:
-              httpGet:
+               httpGet:
                    path: /readyz
                    port: 8000
-              initialDelaySeconds: 3
-              periodSeconds: 5 
+               initialDelaySeconds: 3
+               periodSeconds: 5 

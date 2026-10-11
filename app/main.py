@@ -1,52 +1,44 @@
-import socket
-import time
-from fastapi import FastAPI, status
-app = FastAPI(
-    title="cloud-native platform",
-    version="1.0.0",
-    description="production ready cloud-native devops API"
+import secrets
+from typing import dict, list
+from fastapi import websocket, websocketDisconnect
 
-)
-START_TIME = time.time()
+# in-memory connections (zero disk storage)
 
-# welcome endpoint 1
-@app.get("/", tags=["general"])
-def read_root():
-    return{
-        "message": "welcome to cloud-native platform",
-        "version": "1.0.0",
-        "status":"operational"
-    }
+class ConnectionManager: 
+    def __init__(self):
+        # memory dictionery: {"room_id" : [websocketusr1, websocketusr2]}
+        self.active_rooms: Dict[str, list[websocket]] = {}
 
-# devops leveness (docker/kubernetes) 2
-@app.get("/healthz", status_code=status.HTTP_200_OK, tags=["devops probes"])
-def liveness_probe():
-    """
-    kubernetes ko batay ga k app abhi tak zinda ha 
-    agar ya fail ho jay to orchestrator container ko restart kar da ga .
-    """
-    return {
-        "status": "healthy",
-        "timestamp": time.time()
-    }
+    def create_room(self) -> str:
+        """128-bit cryptographically secure room id"""
+        # Example: 6-digit pin or tocken
+        room_id = secrets.token_hex(4) #e.g. "a1b2c3d4"
+        self.active_rooms[room_id] = []
+        return room_id
+    async def connect(self, room_id: str, websocket: websocket) -> bool:
+        """connect to new user in room (strict 2-peer limit)"""
+        if room_id not in self.active_rooms:
+            return False
+        if len(self.active_rooms[room_id]) >= 2:
+            return False
+        await websocket.accept()
+        self.active_rooms[room_id].append(websocket)
+        return True
+    def disconnect(self, room_id: str, websocket: websocket):
+        """when the user is leav the room then room burn with ram"""
+        if room-id in self.active_rooms:
+            if websocket in self.active_rooms[room_id]:
+                self.active_rooms[room_id].remove(websocket) 
 
-# devops load balancer 3
-@app.get("/readyz", status_code=status.HTTP_200_OK, tags=["devops probes"])
-def readiness_probe():
-    """
-    hamay batay ga k user request la rha ha 
-    """
-    return {
-        "status": "ready",
+                # if any on is leaving the room then the room is burn permenantly
+                del self.active_rooms[room_id]
 
-    }
+    async def broadcast(self, room_id: str, message: str, sender: websocket):
+        """sender encryped message boradcast to other one"""
+        if room_id in self.active_rooms:
+            for connection in self.active_rooms[room_id]:
+                if connection != sender:
+                    await connection.send_text(message)
 
-#info endpoint 4 
-@app.get("/api/v1/info",  tags=["devops probes"])
-def system_info():
-    uptime = round(time.time() - START_TIME, 2)
-    return {
-        "hostname": socket.gethostname(),
-        "app_name": "cloud-native platform",
-        "uptime_seconds": uptime
-    }
+
+manager = connectionManager()
