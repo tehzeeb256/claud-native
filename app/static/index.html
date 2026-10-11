@@ -5,81 +5,405 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostWire | Zero-Trace Ephemeral Chat</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: #0a0a0c; color: #e4e4e7; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 15px; }
-        .card { background: #121216; border: 1px solid #27272a; border-radius: 12px; width: 100%; max-width: 480px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { font-size: 20px; font-weight: 700; color: #fafafa; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-        .subtitle { font-size: 13px; color: #a1a1aa; margin-bottom: 25px; }
-        .btn { padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; }
-        .btn-primary { background: #6366f1; color: white; }
-        .btn-primary:hover { background: #4f46e5; }
-        .btn-burn-send { background: #ea580c; color: white; font-size: 13px; padding: 0 14px; white-space: nowrap; }
-        .btn-burn-send:hover { background: #c2410c; }
-        .btn-danger { width: 100%; background: #dc2626; color: white; margin-top: 15px; }
-        .btn-danger:hover { background: #b91c1c; }
-        .input-group { display: flex; gap: 8px; margin-top: 10px; }
-        input[type="text"] { width: 100%; background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; color: white; font-size: 14px; outline: none; }
-        input[type="text"]:focus { border-color: #6366f1; }
-        .chat-box { height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
-        .msg { max-width: 85%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; word-break: break-word; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        .msg-me { align-self: flex-end; background: #312e81; color: #e0e7ff; }
-        .msg-them { align-self: flex-start; background: #27272a; color: #f4f4f5; }
+        :root {
+            --bg-deep: #070609;
+            --bg-surface: rgba(18, 14, 22, 0.72);
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --accent-crimson: #e11d48;
+            --accent-crimson-hover: #be123c;
+            --accent-maroon: #881337;
+            --accent-flame: #ea580c;
+            --text-primary: #f4f4f6;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif; }
         
-        /* Anti-Spy Blur Filter */
-        .blur-text { filter: blur(5px); transition: filter 0.2s; cursor: pointer; user-select: none; }
-        .blur-text:hover, .blur-text:active { filter: blur(0); }
+        body {
+            background-color: var(--bg-deep);
+            background-image: 
+                radial-gradient(circle at 15% 20%, rgba(136, 19, 55, 0.25) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(225, 29, 72, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 50% 50%, rgba(10, 8, 14, 0.8) 0%, transparent 100%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: var(--bg-surface);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            padding: 24px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.03);
+        }
+
+        /* Brand & Typography */
+        .brand-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+        .brand-title {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #fff 40%, #fda4af 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .flame-icon {
+            font-size: 22px;
+            filter: drop-shadow(0 0 10px rgba(225, 29, 72, 0.6));
+        }
+        .subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-bottom: 22px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .subtitle span { color: var(--text-muted); }
+
+        /* Unified Header Hub Box */
+        .header-hub {
+            background: rgba(10, 7, 14, 0.7);
+            border: 1px solid rgba(225, 29, 72, 0.2);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .hub-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .room-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .room-meta-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+        .room-id-tag {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: rgba(225, 29, 72, 0.15);
+            border: 1px solid rgba(225, 29, 72, 0.35);
+            color: #f43f5e;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            letter-spacing: 0.5px;
+        }
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #34d399;
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            background-color: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #10b981;
+            animation: pulse-dot 2s infinite ease-in-out;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .hub-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-hub-action {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-glass);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-hub-action:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Buttons Standard */
+        .btn {
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: white;
+            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #f43f5e, #e11d48);
+            box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-burn-send {
+            background: linear-gradient(135deg, #ea580c, #c2410c);
+            color: white;
+            font-size: 13px;
+            padding: 0 16px;
+            white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+        }
+        .btn-burn-send:hover {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            box-shadow: 0 6px 20px rgba(234, 88, 12, 0.5);
+            transform: translateY(-1px);
+        }
+        .btn-nuclear {
+            width: 100%;
+            background: rgba(185, 28, 28, 0.15);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            color: #f87171;
+            padding: 10px;
+            margin-top: 14px;
+            font-size: 13px;
+        }
+        .btn-nuclear:hover {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+            box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+        }
+
+        /* Inputs */
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        input[type="text"] {
+            width: 100%;
+            background: rgba(10, 7, 14, 0.6);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        input[type="text"]:focus {
+            border-color: rgba(225, 29, 72, 0.6);
+            box-shadow: 0 0 12px rgba(225, 29, 72, 0.25);
+        }
+
+        /* Chat Stream Area */
+        .chat-box {
+            height: 360px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 14px 6px;
+            scroll-behavior: smooth;
+        }
+        .chat-box::-webkit-scrollbar { width: 6px; }
+        .chat-box::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        /* Messages */
+        .msg {
+            max-width: 82%;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 14px;
+            line-height: 1.45;
+            word-break: break-word;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .msg-me {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #881337, #4c0519);
+            border: 1px solid rgba(225, 29, 72, 0.3);
+            color: #ffe4e6;
+            border-bottom-right-radius: 4px;
+        }
+        .msg-them {
+            align-self: flex-start;
+            background: rgba(30, 24, 38, 0.85);
+            border: 1px solid var(--border-glass);
+            color: #f4f4f5;
+            border-bottom-left-radius: 4px;
+        }
+
+        /* Anti-Spy Blur Effect */
+        .blur-text {
+            filter: blur(5px);
+            transition: filter 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+        .blur-text:hover, .blur-text:active {
+            filter: blur(0);
+        }
 
         /* 59s Burn Badge */
-        .burn-badge { font-size: 11px; color: #f97316; background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 4px; padding: 2px 6px; font-weight: bold; white-space: nowrap; }
+        .burn-badge {
+            font-size: 11px;
+            color: #fdba74;
+            background: rgba(234, 88, 12, 0.2);
+            border: 1px solid rgba(234, 88, 12, 0.45);
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-weight: 700;
+            white-space: nowrap;
+        }
 
-        .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #18181b; border: 1px solid #27272a; color: #10b981; margin-bottom: 15px; }
+        /* Feature Pills */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 18px 0;
+        }
+        .feature-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
     <!-- 1. LAUNCHPAD SCREEN (Home) -->
-    <div id="screen-launchpad" class="card">
-        <h1>🔥 GhostWire</h1>
-        <p class="subtitle">Zero-Trace • In-Memory • E2E Encrypted</p>
+    <div id="screen-launchpad" class="glass-card">
+        <div class="brand-header">
+            <span class="flame-icon">🔥</span>
+            <div class="brand-title">GhostWire</div>
+        </div>
+        <p class="subtitle">Zero-Trace <span>•</span> In-Memory <span>•</span> E2E Encrypted</p>
         
-        <button id="btn-create" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="createRoom()">Create Ephemeral Room</button>
+        <button id="btn-create" class="btn btn-primary" style="width: 100%; padding: 14px;" onclick="createRoom()">
+            ⚡ Create Ephemeral Room
+        </button>
         
-        <div style="text-align: center; color: #71717a; font-size: 12px; margin: 10px 0;">OR JOIN ROOM</div>
+        <div class="feature-grid">
+            <div class="feature-pill">🛡️ AES-256 E2EE</div>
+            <div class="feature-pill">💨 RAM Only (Zero Disk)</div>
+            <div class="feature-pill">⏱️ 59s Self-Destruct</div>
+            <div class="feature-pill">👁️ Anti-Spy Hover Blur</div>
+        </div>
+
+        <div style="text-align: center; color: var(--text-muted); font-size: 12px; margin: 12px 0; letter-spacing: 1px;">
+            ─── OR ENTER EXISTING ROOM ───
+        </div>
         
         <div class="input-group">
-            <input type="text" id="input-room-id" placeholder="Enter Room ID...">
-            <button class="btn btn-primary" style="width: auto; padding: 0 20px;" onclick="joinRoomManual()">Join</button>
+            <input type="text" id="input-room-id" placeholder="Paste Room ID...">
+            <button class="btn btn-primary" style="width: auto; padding: 0 24px;" onclick="joinRoomManual()">Join</button>
         </div>
     </div>
 
     <!-- 2. ACTIVE CHAT SCREEN -->
-    <div id="screen-chat" class="card hidden">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h1 style="font-size: 16px;">Room: <span id="display-room-id" style="color: #6366f1;"></span></h1>
-            <div class="badge" id="status-badge">🟢 Connecting...</div>
+    <div id="screen-chat" class="glass-card hidden">
+        <!-- Unified Header Hub Box -->
+        <div class="header-hub">
+            <div class="hub-top-row">
+                <div class="room-meta">
+                    <span class="room-meta-label">ROOM:</span>
+                    <span class="room-id-tag" id="display-room-id">...</span>
+                </div>
+                <div class="status-pill" id="status-badge">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Encrypted</span>
+                </div>
+            </div>
+            <div class="hub-actions">
+                <button class="btn-hub-action" onclick="copyInviteLink()">
+                    📋 Copy Secret Link
+                </button>
+            </div>
         </div>
 
-        <button class="btn" style="width: 100%; background: #27272a; color: #d4d4d8; font-size: 12px; padding: 8px; margin-bottom: 10px;" onclick="copyInviteLink()">📋 Copy Secret Invite Link</button>
-
+        <!-- Chat Stream -->
         <div class="chat-box" id="chat-box"></div>
 
+        <!-- Inputs & Dual Send Options -->
         <div class="input-group">
             <input type="text" id="input-msg" placeholder="Type secret message..." onkeypress="handleEnter(event)">
-            <!-- 1. Normal Send Button (No Timer) -->
             <button class="btn btn-primary" style="width: auto; padding: 0 16px;" onclick="sendSecretMessage(false)">Send</button>
-            <!-- 2. 59-Second Self-Destruct Burn Button -->
-            <button class="btn btn-burn-send" onclick="sendSecretMessage(true)">🔥 Burn (59s)</button>
+            <button class="btn btn-burn-send" onclick="sendSecretMessage(true)">🔥 59s</button>
         </div>
 
-        <button class="btn btn-danger" onclick="burnRoom()">🔥 Nuclear Burn (Destroy Room)</button>
+        <!-- Nuclear Burn -->
+        <button class="btn btn-nuclear" onclick="burnRoom()">💥 Nuclear Burn (Destroy Room)</button>
     </div>
 
     <!-- 3. ASH SCREEN (Burned) -->
-    <div id="screen-burned" class="card hidden" style="text-align: center; padding: 40px 20px;">
-        <h1 style="justify-content: center; color: #ef4444;">🔥 Room Incinerated</h1>
-        <p class="subtitle" style="margin-top: 10px;">All memory wiped. Zero traces remain in existence.</p>
-        <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="location.reload()">Create New Room</button>
+    <div id="screen-burned" class="glass-card hidden" style="text-align: center; padding: 45px 24px;">
+        <div style="font-size: 38px; margin-bottom: 12px; filter: drop-shadow(0 0 16px rgba(220, 38, 38, 0.7));">🔥</div>
+        <h1 style="justify-content: center; color: #f87171; font-size: 20px;">Room Incinerated</h1>
+        <p class="subtitle" style="margin-top: 10px; justify-content: center;">All memory wiped. Zero traces remain in existence.</p>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 24px; padding: 12px;" onclick="resetToHome()">⚡ Create New Room</button>
     </div>
 
     <script>
@@ -122,17 +446,23 @@
 
         // --- ROOM MANAGEMENT ---
         async function createRoom() {
-            const res = await fetch("/api/room/create", { method: "POST" });
-            const data = await res.json();
-            currentRoomId = data.room_id;
-            
-            // Generate Key in browser (NEVER sent to server)
-            cryptoKey = await generateCryptoKey();
-            const keyStr = await exportKeyToBase64(cryptoKey);
-            
-            // Store key in URL Hash (#key)
-            window.location.hash = keyStr;
-            startChat();
+            try {
+                const res = await fetch("/api/room/create", { method: "POST" });
+                const data = await res.json();
+                currentRoomId = data.room_id;
+                
+                // Generate Key in browser (NEVER sent to server)
+                cryptoKey = await generateCryptoKey();
+                const keyStr = await exportKeyToBase64(cryptoKey);
+                
+                // Update URL with both Room ID and Key Hash
+                const newUrl = `${window.location.protocol}//${window.location.host}/?room=${currentRoomId}#${keyStr}`;
+                window.history.replaceState(null, "", newUrl);
+                
+                startChat();
+            } catch (err) {
+                alert("Error creating room: " + err.message);
+            }
         }
 
         async function joinRoomManual() {
@@ -140,10 +470,33 @@
             if (!id) return alert("Enter Room ID");
             currentRoomId = id;
             if (window.location.hash) {
-                cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
+                try {
+                    cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
+                } catch(e) {
+                    console.error("Key import failed", e);
+                }
             }
             startChat();
         }
+
+        // Auto-join if URL has ?room=... and #key...
+        window.addEventListener("DOMContentLoaded", async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomIdParam = urlParams.get("room");
+            const hashKey = window.location.hash ? window.location.hash.substring(1) : "";
+
+            if (roomIdParam) {
+                currentRoomId = roomIdParam;
+                if (hashKey) {
+                    try {
+                        cryptoKey = await importKeyFromBase64(hashKey);
+                    } catch(e) {
+                        console.error("Auto key import failed", e);
+                    }
+                }
+                startChat();
+            }
+        });
 
         function startChat() {
             document.getElementById("screen-launchpad").classList.add("hidden");
@@ -238,8 +591,9 @@
         }
 
         function copyInviteLink() {
-            navigator.clipboard.writeText(window.location.href);
-            alert("Secret invite link copied to clipboard! Send to your peer.");
+            const url = window.location.href;
+            navigator.clipboard.writeText(url);
+            alert("Secret invite link copied to clipboard!\nShare this exact link with your peer.");
         }
 
         function burnRoom() {
@@ -248,8 +602,22 @@
         }
 
         function triggerBurnScreen() {
+            // Clean URL query and hash so refreshing doesn't retry dead room
+            window.history.replaceState(null, "", window.location.pathname);
+            currentRoomId = null;
+            cryptoKey = null;
+            if (ws) {
+                ws.onclose = null; // prevent loop
+                ws.close();
+                ws = null;
+            }
             document.getElementById("screen-chat").classList.add("hidden");
+            document.getElementById("screen-launchpad").classList.add("hidden");
             document.getElementById("screen-burned").classList.remove("hidden");
+        }
+
+        function resetToHome() {
+            window.location.href = window.location.pathname;
         }
     </script>
 </body>

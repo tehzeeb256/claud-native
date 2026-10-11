@@ -119,7 +119,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
             await manager.broadcast(room_id, ciphertext, sender=websocket)
 
     except WebSocketDisconnect:
-        # Jaise hi koi ek user disconnect hua: NUCLEAR PURGE!
-        manager.disconnect(room_id, websocket)
         # Agar doosra banda abhi bhi connected hai, to usko batayein ke room burn ho gaya
         await manager.broadcast(room_id, '{"type": "room_burned"}', sender=websocket)
+        # Jaise hi koi ek user disconnect hua: NUCLEAR PURGE!
+        manager.disconnect(room_id, websocket)
