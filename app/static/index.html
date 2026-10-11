@@ -10,18 +10,28 @@
         .card { background: #121216; border: 1px solid #27272a; border-radius: 12px; width: 100%; max-width: 480px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         h1 { font-size: 20px; font-weight: 700; color: #fafafa; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
         .subtitle { font-size: 13px; color: #a1a1aa; margin-bottom: 25px; }
-        .btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; }
-        .btn-primary { background: #6366f1; color: white; margin-bottom: 15px; }
+        .btn { padding: 12px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .btn-primary { background: #6366f1; color: white; }
         .btn-primary:hover { background: #4f46e5; }
-        .btn-danger { background: #dc2626; color: white; margin-top: 15px; }
+        .btn-burn-send { background: #ea580c; color: white; font-size: 13px; padding: 0 14px; white-space: nowrap; }
+        .btn-burn-send:hover { background: #c2410c; }
+        .btn-danger { width: 100%; background: #dc2626; color: white; margin-top: 15px; }
         .btn-danger:hover { background: #b91c1c; }
         .input-group { display: flex; gap: 8px; margin-top: 10px; }
         input[type="text"] { width: 100%; background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 12px; color: white; font-size: 14px; outline: none; }
         input[type="text"]:focus { border-color: #6366f1; }
         .chat-box { height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 0; }
-        .msg { max-width: 80%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; word-break: break-word; }
+        .msg { max-width: 85%; padding: 10px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; word-break: break-word; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .msg-me { align-self: flex-end; background: #312e81; color: #e0e7ff; }
         .msg-them { align-self: flex-start; background: #27272a; color: #f4f4f5; }
+        
+        /* Anti-Spy Blur Filter */
+        .blur-text { filter: blur(5px); transition: filter 0.2s; cursor: pointer; user-select: none; }
+        .blur-text:hover, .blur-text:active { filter: blur(0); }
+
+        /* 59s Burn Badge */
+        .burn-badge { font-size: 11px; color: #f97316; background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 4px; padding: 2px 6px; font-weight: bold; white-space: nowrap; }
+
         .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 10px; border-radius: 20px; background: #18181b; border: 1px solid #27272a; color: #10b981; margin-bottom: 15px; }
         .hidden { display: none !important; }
     </style>
@@ -33,7 +43,7 @@
         <h1>🔥 GhostWire</h1>
         <p class="subtitle">Zero-Trace • In-Memory • E2E Encrypted</p>
         
-        <button id="btn-create" class="btn btn-primary" onclick="createRoom()">Create Ephemeral Room</button>
+        <button id="btn-create" class="btn btn-primary" style="width: 100%; margin-bottom: 15px;" onclick="createRoom()">Create Ephemeral Room</button>
         
         <div style="text-align: center; color: #71717a; font-size: 12px; margin: 10px 0;">OR JOIN ROOM</div>
         
@@ -50,13 +60,16 @@
             <div class="badge" id="status-badge">🟢 Connecting...</div>
         </div>
 
-        <button class="btn" style="background: #27272a; color: #d4d4d8; font-size: 12px; padding: 8px; margin-bottom: 10px;" onclick="copyInviteLink()">📋 Copy Secret Invite Link</button>
+        <button class="btn" style="width: 100%; background: #27272a; color: #d4d4d8; font-size: 12px; padding: 8px; margin-bottom: 10px;" onclick="copyInviteLink()">📋 Copy Secret Invite Link</button>
 
         <div class="chat-box" id="chat-box"></div>
 
         <div class="input-group">
             <input type="text" id="input-msg" placeholder="Type secret message..." onkeypress="handleEnter(event)">
-            <button class="btn btn-primary" style="width: auto; padding: 0 20px;" onclick="sendSecretMessage()">Send</button>
+            <!-- 1. Normal Send Button (No Timer) -->
+            <button class="btn btn-primary" style="width: auto; padding: 0 16px;" onclick="sendSecretMessage(false)">Send</button>
+            <!-- 2. 59-Second Self-Destruct Burn Button -->
+            <button class="btn btn-burn-send" onclick="sendSecretMessage(true)">🔥 Burn (59s)</button>
         </div>
 
         <button class="btn btn-danger" onclick="burnRoom()">🔥 Nuclear Burn (Destroy Room)</button>
@@ -66,7 +79,7 @@
     <div id="screen-burned" class="card hidden" style="text-align: center; padding: 40px 20px;">
         <h1 style="justify-content: center; color: #ef4444;">🔥 Room Incinerated</h1>
         <p class="subtitle" style="margin-top: 10px;">All memory wiped. Zero traces remain in existence.</p>
-        <button class="btn btn-primary" style="margin-top: 20px;" onclick="location.reload()">Create New Room</button>
+        <button class="btn btn-primary" style="width: 100%; margin-top: 20px;" onclick="location.reload()">Create New Room</button>
     </div>
 
     <script>
@@ -153,7 +166,8 @@
                 }
                 try {
                     const decrypted = await decryptText(raw, cryptoKey);
-                    addMessage(decrypted, "them");
+                    const parsed = JSON.parse(decrypted);
+                    addMessage(parsed.text, "them", parsed.timer);
                 } catch(e) {
                     console.error("Decryption error", e);
                 }
@@ -164,31 +178,63 @@
             };
         }
 
-        async function sendSecretMessage() {
+        async function sendSecretMessage(isTimed) {
             const input = document.getElementById("input-msg");
             const text = input.value.trim();
             if (!text || !ws) return;
 
+            const payload = {
+                text: text,
+                timer: isTimed ? 59 : null
+            };
+
             // Encrypt in browser before sending!
-            const encrypted = await encryptText(text, cryptoKey);
+            const encrypted = await encryptText(JSON.stringify(payload), cryptoKey);
             ws.send(encrypted);
 
-            addMessage(text, "me");
+            addMessage(text, "me", payload.timer);
             input.value = "";
         }
 
-        function addMessage(text, type) {
+        function addMessage(text, type, timerSeconds) {
             const box = document.getElementById("chat-box");
             const msg = document.createElement("div");
             msg.className = `msg msg-${type}`;
-            // XSS Prevention: Strict textContent (Never innerHTML)
-            msg.textContent = text;
+
+            // Anti-Spy Blur Filter
+            const textSpan = document.createElement("span");
+            textSpan.className = "blur-text";
+            textSpan.textContent = text;
+            textSpan.title = "Hover or tap to reveal";
+            msg.appendChild(textSpan);
+
+            // 59s Burn Timer Logic
+            if (timerSeconds) {
+                const badge = document.createElement("span");
+                badge.className = "burn-badge";
+                let timeLeft = timerSeconds;
+                badge.textContent = `🔥 ${timeLeft}s`;
+                msg.appendChild(badge);
+
+                const countdown = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        badge.textContent = `🔥 ${timeLeft}s`;
+                    } else {
+                        clearInterval(countdown);
+                        msg.style.transition = "opacity 0.5s";
+                        msg.style.opacity = "0";
+                        setTimeout(() => msg.remove(), 500);
+                    }
+                }, 1000);
+            }
+
             box.appendChild(msg);
             box.scrollTop = box.scrollHeight;
         }
 
         function handleEnter(e) {
-            if (e.key === "Enter") sendSecretMessage();
+            if (e.key === "Enter") sendSecretMessage(false);
         }
 
         function copyInviteLink() {
