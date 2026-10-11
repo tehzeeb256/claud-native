@@ -125,21 +125,32 @@
             font-weight: 600;
             padding: 4px 10px;
             border-radius: 20px;
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            color: #fbbf24;
+            transition: all 0.3s;
+        }
+        .status-pill.connected {
             background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-color: rgba(16, 185, 129, 0.25);
             color: #34d399;
         }
         .status-dot {
             width: 7px;
             height: 7px;
-            background-color: #10b981;
+            background-color: #fbbf24;
             border-radius: 50%;
+            box-shadow: 0 0 8px #fbbf24;
+            animation: pulse-dot 1.5s infinite ease-in-out;
+            transition: all 0.3s;
+        }
+        .status-pill.connected .status-dot {
+            background-color: #10b981;
             box-shadow: 0 0 8px #10b981;
-            animation: pulse-dot 2s infinite ease-in-out;
         }
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
+            50% { opacity: 0.3; transform: scale(0.85); }
         }
 
         .hub-actions {
@@ -166,6 +177,26 @@
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
             transform: translateY(-1px);
+        }
+
+        /* Peer Connected Banner */
+        .peer-banner {
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-weight: 600;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         /* Buttons Standard */
@@ -256,6 +287,27 @@
         .chat-box::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.1);
             border-radius: 3px;
+        }
+
+        /* System notification in chat stream */
+        .sys-msg {
+            align-self: center;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #6ee7b7;
+            font-size: 12px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin: 4px 0;
+            animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
         }
 
         /* Messages */
@@ -374,7 +426,7 @@
                 </div>
                 <div class="status-pill" id="status-badge">
                     <span class="status-dot"></span>
-                    <span id="status-text">Encrypted</span>
+                    <span id="status-text">Waiting for Peer</span>
                 </div>
             </div>
             <div class="hub-actions">
@@ -498,6 +550,21 @@
             }
         });
 
+        function markPeerConnected() {
+            const pill = document.getElementById("status-badge");
+            const text = document.getElementById("status-text");
+            pill.classList.add("connected");
+            text.textContent = "Peer Connected (E2EE Active)";
+
+            // Add notification inside chat box if not already there
+            const box = document.getElementById("chat-box");
+            const sysMsg = document.createElement("div");
+            sysMsg.className = "sys-msg";
+            sysMsg.innerHTML = "🔐 <span>Peer Joined. Room is 100% Encrypted & Ready.</span>";
+            box.appendChild(sysMsg);
+            box.scrollTop = box.scrollHeight;
+        }
+
         function startChat() {
             document.getElementById("screen-launchpad").classList.add("hidden");
             document.getElementById("screen-chat").classList.remove("hidden");
@@ -508,7 +575,7 @@
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/${currentRoomId}`);
 
             ws.onopen = () => {
-                document.getElementById("status-badge").textContent = "🟢 Connected (Encrypted)";
+                // Connection pipe open
             };
 
             ws.onmessage = async (event) => {
@@ -517,6 +584,13 @@
                     triggerBurnScreen();
                     return;
                 }
+
+                // Check peer join event
+                if (raw.includes('"type":"peer_joined"') || raw.includes('"type": "peer_joined"')) {
+                    markPeerConnected();
+                    return;
+                }
+
                 try {
                     const decrypted = await decryptText(raw, cryptoKey);
                     const parsed = JSON.parse(decrypted);

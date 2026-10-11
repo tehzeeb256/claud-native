@@ -52,6 +52,13 @@ def test_websocket_chat():
     # 2 users ko connect karke live message test karein
     with client.websocket_connect(f"/ws/{room_id}") as ws1:
         with client.websocket_connect(f"/ws/{room_id}") as ws2:
+            # Dono users ko peer_joined event milna chahiye
+            join_msg1 = ws1.receive_text()
+            assert "peer_joined" in join_msg1
+            join_msg2 = ws2.receive_text()
+            assert "peer_joined" in join_msg2
+
+            # Ab actual encrypted message relay test karein
             ws1.send_text("encrypted_payload_123")
             data = ws2.receive_text()
             assert data == "encrypted_payload_123"

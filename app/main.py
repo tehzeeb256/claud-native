@@ -110,6 +110,11 @@ async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
         await websocket.close(code=1008)
         return
 
+    # Jab 2nd peer join kare, to dono ko notify karein ke room ready hai
+    if room_id in manager.active_rooms and len(manager.active_rooms[room_id]) == 2:
+        for client_conn in manager.active_rooms[room_id]:
+            await client_conn.send_text('{"type": "peer_joined"}')
+
     try:
         # Jab tak dono chat kar rahe hain, messages receive aur forward karein
         while True:
