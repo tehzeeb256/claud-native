@@ -86,3 +86,42 @@ class ConnectionManager:
                     await connection.send_text(message)
 
 manager = ConnectionManager()
+
+# ==========================================================
+# 3. Burner Chat Endpoints (APIs & WebSockets)
+# ==========================================================
+
+# 1. Naya Room Banane ka Endpoint
+@app.post("/api/room/create", tags=["burner"])
+def create_burner_room():
+    """Naya 128-bit ephemeral room generate karna"""
+    room_id = manager.create_room()
+    return {
+        "room_id": room_id,
+        "status": "created"
+    }
+
+# 2. Live WebSocket Chat Pipe
+@app.websocket("/ws/{room_id}")
+async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
+    """Real-time encrypted message relay pipe"""
+    # Naye user ko connect karein (agar room mein pehle se 2 log hon to reject hoga)
+    connected = await manager.connect(room_id, websocket)
+    if not connected:
+        # 403 / Policy Violation: 3rd user ko room se bahar nikalo
+        await websocket.close(code=1008)
+        return
+
+    try:
+        # Jab tak dono chat kar rahe hain, messages receive aur forward karein
+        while True:
+            # Client se encrypted message receive karein
+            ciphertext = await websocket.receive_text()
+            # Doosre partner tak broadcast karein
+            await manager.broadcast(room_id, ciphertext, sender=websocket)
+
+    except WebSocketDisconnect:
+        # Jaise hi koi ek user disconnect hua: NUCLEAR PURGE!
+        manager.disconnect(room_id, websocket)
+        # Agar doosra banda abhi bhi connected hai, to usko batayein ke room burn ho gaya
+        await manager.broadcast(room_id, '{"type": "room_burned"}', sender=websocket)
