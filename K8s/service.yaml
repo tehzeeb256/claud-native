@@ -8,6 +8,13 @@ metadata:
 spec: 
 # type : nodeport
   type: NodePort
+
+  # WebSockets Sticky Session (Taaki peers same RAM context se connect hon)
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
 # selector for pods
   selector:
     app: claud-native

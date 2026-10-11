@@ -28,6 +28,16 @@ spec:
               ports:
                 - containerPort: 8000
 
+              # Lock 5: Container Isolation & Hardening
+              securityContext:
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                runAsNonRoot: true
+                runAsUser: 1001
+                capabilities:
+                  drop:
+                    - ALL
+
 # resource limits 
               resources:
                requests:
