@@ -62,3 +62,35 @@ def test_websocket_chat():
             ws1.send_text("encrypted_payload_123")
             data = ws2.receive_text()
             assert data == "encrypted_payload_123"
+
+# 7. Test The Fortress Security Headers (OWASP & Anti-Forensics)
+def test_security_headers():
+    response = client.get("/")
+    assert response.status_code == 200
+    headers = response.headers
+    # Anti-Forensics Zero Disk Cache
+    assert "no-store" in headers["cache-control"]
+    # Clickjacking Defense
+    assert headers["x-frame-options"] == "DENY"
+    # MIME Sniffing Defense
+    assert headers["x-content-type-options"] == "nosniff"
+    # Strict CSP
+    assert "default-src 'self'" in headers["content-security-policy"]
+    assert "frame-ancestors 'none'" in headers["content-security-policy"]
+
+# 8. Test Room Creation DDoS Rate Limiter (HTTP 429)
+def test_rate_limiter():
+    from app.main import room_creation_history
+    room_creation_history.clear()
+    
+    # 15 requests allow honi chahiye
+    for _ in range(15):
+        res = client.post("/api/room/create")
+        assert res.status_code == 200
+        
+    # 16th request par 429 Too Many Requests aana chahiye
+    rate_limited_res = client.post("/api/room/create")
+    assert rate_limited_res.status_code == 429
+    assert "Too many room creation requests" in rate_limited_res.json()["detail"]
+    
+    room_creation_history.clear()

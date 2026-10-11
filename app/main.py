@@ -1,9 +1,10 @@
 import time
 import socket
 import secrets
+from collections import defaultdict
 from typing import Dict, List
-from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, status, WebSocket, WebSocketDisconnect, Request
+from fastapi.responses import FileResponse, JSONResponse
 
  
 app = FastAPI(
@@ -12,6 +13,44 @@ app = FastAPI(
     description="production ready cloud-native devops API"
 )
 START_TIME = time.time()
+
+# ==========================================================
+# 1. THE FORTRESS: Security Headers & Anti-Forensics Middleware
+# ==========================================================
+@app.middleware("http")
+async def security_fortress_middleware(request: Request, call_next):
+    """Enforce OWASP Top 10 Hardened Headers & Anti-Forensics"""
+    response = await call_next(request)
+    
+    # 1. Anti-Forensics: Zero Disk Caching (No browser history or disk traces)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    
+    # 2. Clickjacking Shield: Framing is strictly forbidden
+    response.headers["X-Frame-Options"] = "DENY"
+    
+    # 3. MIME-Sniffing Prevention
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    # 4. Referrer & XSS Filtering
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # 5. Strict Content Security Policy (CSP)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "connect-src 'self' ws: wss:; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+# In-Memory IP Rate Limiter (Max 15 room creations per 60 seconds per IP)
+room_creation_history: Dict[str, List[float]] = defaultdict(list)
+RATE_LIMIT_WINDOW = 60.0  # seconds
+RATE_LIMIT_MAX_REQUESTS = 15
 
 # Welcome endpoint
 @app.get("/", response_class=FileResponse, tags=["general"])
@@ -89,10 +128,25 @@ manager = ConnectionManager()
 # 3. Burner Chat Endpoints (APIs & WebSockets)
 # ==========================================================
 
-# 1. Naya Room Banane ka Endpoint
+# 1. Naya Room Banane ka Endpoint (With DDoS Rate Limiting)
 @app.post("/api/room/create", tags=["burner"])
-def create_burner_room():
-    """Naya 128-bit ephemeral room generate karna"""
+def create_burner_room(request: Request):
+    """Naya 128-bit ephemeral room generate karna (DDoS & Spam Protected)"""
+    client_ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    
+    # Purani expired timestamps filter karein
+    recent_requests = [t for t in room_creation_history[client_ip] if now - t < RATE_LIMIT_WINDOW]
+    
+    if len(recent_requests) >= RATE_LIMIT_MAX_REQUESTS:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "Too many room creation requests. Please wait a minute."}
+        )
+    
+    recent_requests.append(now)
+    room_creation_history[client_ip] = recent_requests
+
     room_id = manager.create_room()
     return {
         "room_id": room_id,
