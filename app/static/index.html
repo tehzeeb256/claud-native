@@ -410,7 +410,7 @@
         </div>
         
         <div class="input-group">
-            <input type="text" id="input-room-id" placeholder="Paste Room ID...">
+            <input type="text" id="input-room-id" placeholder="Paste Secret Invite Link or Room ID...">
             <button class="btn btn-primary" style="width: auto; padding: 0 24px;" onclick="joinRoomManual()">Join</button>
         </div>
     </div>
@@ -518,16 +518,41 @@
         }
 
         async function joinRoomManual() {
-            const id = document.getElementById("input-room-id").value.trim();
-            if (!id) return alert("Enter Room ID");
-            currentRoomId = id;
-            if (window.location.hash) {
+            let inputVal = document.getElementById("input-room-id").value.trim();
+            if (!inputVal) return alert("Please enter Room ID or paste Invite Link");
+
+            // Case 1: Agar user ne poora Invite Link paste kar diya ho (e.g. https://.../?room=123#key)
+            if (inputVal.includes("?room=") || inputVal.includes("#")) {
                 try {
-                    cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
+                    const parsedUrl = new URL(inputVal.startsWith("http") ? inputVal : "https://" + inputVal);
+                    const rId = parsedUrl.searchParams.get("room");
+                    const hKey = parsedUrl.hash ? parsedUrl.hash.substring(1) : "";
+                    
+                    if (rId) currentRoomId = rId;
+                    if (hKey) {
+                        cryptoKey = await importKeyFromBase64(hKey);
+                        window.location.hash = hKey;
+                    }
                 } catch(e) {
-                    console.error("Key import failed", e);
+                    console.error("URL parsing failed, treating as raw ID", e);
+                }
+            } else {
+                // Case 2: User ne sirf Room ID dali hai
+                currentRoomId = inputVal;
+                if (window.location.hash) {
+                    try {
+                        cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
+                    } catch(e) {
+                        console.error("Key import failed", e);
+                    }
                 }
             }
+
+            if (!cryptoKey && !window.location.hash) {
+                alert("⚠️ Encryption Key Missing!\n\nGhostWire E2EE requires the Secret Key. Please use the complete Secret Invite Link shared by your peer.");
+                return;
+            }
+
             startChat();
         }
 
