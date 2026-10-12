@@ -6,26 +6,28 @@
     <title>GhostWire | Zero-Trace Ephemeral Chat</title>
     <style>
         :root {
-            --bg-deep: #070609;
-            --bg-surface: rgba(18, 14, 22, 0.72);
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --accent-crimson: #e11d48;
-            --accent-crimson-hover: #be123c;
-            --accent-maroon: #881337;
-            --accent-flame: #ea580c;
-            --text-primary: #f4f4f6;
-            --text-secondary: #a1a1aa;
-            --text-muted: #71717a;
+            --bg-void: #030305;
+            --bg-card: rgba(10, 12, 18, 0.75);
+            --border-ghost: rgba(0, 242, 254, 0.15);
+            --border-glow: rgba(0, 242, 254, 0.35);
+            --accent-ghost: #00f2fe;
+            --accent-ghost-hover: #4facfe;
+            --accent-phantom: #7928ca;
+            --accent-flame: #ff5722;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --text-muted: #545d68;
+            --badge-green: #00ff88;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif; }
         
         body {
-            background-color: var(--bg-deep);
+            background-color: var(--bg-void);
             background-image: 
-                radial-gradient(circle at 15% 20%, rgba(136, 19, 55, 0.25) 0%, transparent 45%),
-                radial-gradient(circle at 85% 80%, rgba(225, 29, 72, 0.18) 0%, transparent 50%),
-                radial-gradient(circle at 50% 50%, rgba(10, 8, 14, 0.8) 0%, transparent 100%);
+                radial-gradient(circle at 10% 15%, rgba(0, 242, 254, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 85%, rgba(121, 40, 202, 0.12) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(5, 7, 12, 0.85) 0%, transparent 100%);
             background-attachment: fixed;
             color: var(--text-primary);
             display: flex;
@@ -35,37 +37,56 @@
             padding: 16px;
         }
 
-        /* Glassmorphism Card */
+        /* Pure GhostWire Glass Card */
         .glass-card {
-            background: var(--bg-surface);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
+            background: var(--bg-card);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border-ghost);
+            border-radius: 18px;
             width: 100%;
             max-width: 500px;
             padding: 24px;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.03);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 242, 254, 0.04);
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Brand & Typography */
+        /* Subtle wire accent line at the top */
+        .glass-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 20%;
+            right: 20%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-ghost), transparent);
+            opacity: 0.7;
+        }
+
+        /* Brand & Header */
         .brand-header {
             display: flex;
             align-items: center;
             gap: 10px;
             margin-bottom: 6px;
         }
+        .ghost-symbol {
+            font-size: 24px;
+            filter: drop-shadow(0 0 12px rgba(0, 242, 254, 0.6));
+            animation: floatGhost 3s ease-in-out infinite alternate;
+        }
+        @keyframes floatGhost {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-3px); }
+        }
         .brand-title {
             font-size: 22px;
             font-weight: 800;
             letter-spacing: -0.5px;
-            background: linear-gradient(135deg, #fff 40%, #fda4af 100%);
+            background: linear-gradient(135deg, #ffffff 40%, var(--accent-ghost) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        }
-        .flame-icon {
-            font-size: 22px;
-            filter: drop-shadow(0 0 10px rgba(225, 29, 72, 0.6));
         }
         .subtitle {
             font-size: 13px;
@@ -79,8 +100,8 @@
 
         /* Unified Header Hub Box */
         .header-hub {
-            background: rgba(10, 7, 14, 0.7);
-            border: 1px solid rgba(225, 29, 72, 0.2);
+            background: rgba(5, 7, 12, 0.85);
+            border: 1px solid rgba(0, 242, 254, 0.18);
             border-radius: 12px;
             padding: 12px 14px;
             margin-bottom: 14px;
@@ -109,9 +130,9 @@
         }
         .room-id-tag {
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            background: rgba(225, 29, 72, 0.15);
-            border: 1px solid rgba(225, 29, 72, 0.35);
-            color: #f43f5e;
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            color: var(--accent-ghost);
             padding: 3px 8px;
             border-radius: 6px;
             font-size: 13px;
@@ -131,9 +152,9 @@
             transition: all 0.3s;
         }
         .status-pill.connected {
-            background: rgba(16, 185, 129, 0.1);
-            border-color: rgba(16, 185, 129, 0.25);
-            color: #34d399;
+            background: rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.35);
+            color: var(--badge-green);
         }
         .status-dot {
             width: 7px;
@@ -145,8 +166,8 @@
             transition: all 0.3s;
         }
         .status-pill.connected .status-dot {
-            background-color: #10b981;
-            box-shadow: 0 0 8px #10b981;
+            background-color: var(--badge-green);
+            box-shadow: 0 0 10px var(--badge-green);
         }
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
@@ -159,8 +180,8 @@
         }
         .btn-hub-action {
             flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-glass);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--text-primary);
             padding: 8px 12px;
             border-radius: 8px;
@@ -174,29 +195,10 @@
             gap: 6px;
         }
         .btn-hub-action:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(0, 242, 254, 0.12);
+            border-color: rgba(0, 242, 254, 0.3);
+            color: var(--accent-ghost);
             transform: translateY(-1px);
-        }
-
-        /* Peer Connected Banner */
-        .peer-banner {
-            background: rgba(16, 185, 129, 0.15);
-            border: 1px solid rgba(16, 185, 129, 0.4);
-            color: #6ee7b7;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            font-weight: 600;
-            animation: slideDown 0.3s ease;
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         /* Buttons Standard */
@@ -213,31 +215,31 @@
             gap: 8px;
         }
         .btn-primary {
-            background: linear-gradient(135deg, #e11d48, #be123c);
+            background: linear-gradient(135deg, #00c6ff, #0072ff);
             color: white;
-            box-shadow: 0 4px 14px rgba(225, 29, 72, 0.35);
+            box-shadow: 0 4px 14px rgba(0, 198, 255, 0.3);
         }
         .btn-primary:hover {
-            background: linear-gradient(135deg, #f43f5e, #e11d48);
-            box-shadow: 0 6px 20px rgba(225, 29, 72, 0.5);
+            background: linear-gradient(135deg, #00f2fe, #4facfe);
+            box-shadow: 0 6px 22px rgba(0, 242, 254, 0.45);
             transform: translateY(-1px);
         }
         .btn-burn-send {
-            background: linear-gradient(135deg, #ea580c, #c2410c);
+            background: linear-gradient(135deg, #ff5722, #e64a19);
             color: white;
             font-size: 13px;
             padding: 0 16px;
             white-space: nowrap;
-            box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+            box-shadow: 0 4px 14px rgba(255, 87, 34, 0.35);
         }
         .btn-burn-send:hover {
-            background: linear-gradient(135deg, #f97316, #ea580c);
-            box-shadow: 0 6px 20px rgba(234, 88, 12, 0.5);
+            background: linear-gradient(135deg, #ff7043, #f4511e);
+            box-shadow: 0 6px 20px rgba(255, 87, 34, 0.5);
             transform: translateY(-1px);
         }
         .btn-nuclear {
             width: 100%;
-            background: rgba(185, 28, 28, 0.15);
+            background: rgba(220, 38, 38, 0.12);
             border: 1px solid rgba(220, 38, 38, 0.3);
             color: #f87171;
             padding: 10px;
@@ -259,8 +261,8 @@
         }
         input[type="text"] {
             width: 100%;
-            background: rgba(10, 7, 14, 0.6);
-            border: 1px solid var(--border-glass);
+            background: rgba(5, 7, 12, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 10px;
             padding: 12px 14px;
             color: white;
@@ -269,8 +271,8 @@
             transition: border-color 0.2s, box-shadow 0.2s;
         }
         input[type="text"]:focus {
-            border-color: rgba(225, 29, 72, 0.6);
-            box-shadow: 0 0 12px rgba(225, 29, 72, 0.25);
+            border-color: var(--accent-ghost);
+            box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
         }
 
         /* Chat Stream Area */
@@ -292,9 +294,9 @@
         /* System notification in chat stream */
         .sys-msg {
             align-self: center;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-            color: #6ee7b7;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            color: var(--badge-green);
             font-size: 12px;
             padding: 6px 14px;
             border-radius: 20px;
@@ -322,20 +324,20 @@
             align-items: center;
             gap: 8px;
             flex-wrap: wrap;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.4);
         }
         .msg-me {
             align-self: flex-end;
-            background: linear-gradient(135deg, #881337, #4c0519);
-            border: 1px solid rgba(225, 29, 72, 0.3);
-            color: #ffe4e6;
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border: 1px solid rgba(99, 102, 241, 0.35);
+            color: #e0e7ff;
             border-bottom-right-radius: 4px;
         }
         .msg-them {
             align-self: flex-start;
-            background: rgba(30, 24, 38, 0.85);
-            border: 1px solid var(--border-glass);
-            color: #f4f4f5;
+            background: rgba(18, 22, 32, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #f0f6fc;
             border-bottom-left-radius: 4px;
         }
 
@@ -353,9 +355,9 @@
         /* 59s Burn Badge */
         .burn-badge {
             font-size: 11px;
-            color: #fdba74;
-            background: rgba(234, 88, 12, 0.2);
-            border: 1px solid rgba(234, 88, 12, 0.45);
+            color: #ffab91;
+            background: rgba(255, 87, 34, 0.2);
+            border: 1px solid rgba(255, 87, 34, 0.45);
             border-radius: 6px;
             padding: 2px 7px;
             font-weight: 700;
@@ -389,7 +391,7 @@
     <!-- 1. LAUNCHPAD SCREEN (Home) -->
     <div id="screen-launchpad" class="glass-card">
         <div class="brand-header">
-            <span class="flame-icon">🔥</span>
+            <span class="ghost-symbol">👻</span>
             <div class="brand-title">GhostWire</div>
         </div>
         <p class="subtitle">Zero-Trace <span>•</span> In-Memory <span>•</span> E2E Encrypted</p>
