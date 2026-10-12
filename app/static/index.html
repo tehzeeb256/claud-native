@@ -342,7 +342,7 @@
         </div>
 
         <div class="cli-input-group">
-            <input type="text" id="input-room-id" placeholder="Paste Secret Invite Link or Room ID...">
+            <input type="text" id="input-room-id" placeholder="Paste Invite Link or Enter Room ID...">
             <button class="btn" style="width: auto; padding: 0 20px;" onclick="joinRoomManual()">CONNECT</button>
         </div>
     </div>
@@ -403,9 +403,28 @@
         let currentRoomId = null;
         let cryptoKey = null;
 
-        // --- WEB CRYPTO E2EE (AES-256-GCM) ---
-        async function generateCryptoKey() {
-            return await window.crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+        // --- WEB CRYPTO E2EE (Deterministic Derivation from Room ID) ---
+        async function deriveKeyFromRoomId(roomId) {
+            const enc = new TextEncoder();
+            const keyMaterial = await window.crypto.subtle.importKey(
+                "raw",
+                enc.encode(roomId),
+                { name: "PBKDF2" },
+                false,
+                ["deriveKey"]
+            );
+            return await window.crypto.subtle.deriveKey(
+                {
+                    name: "PBKDF2",
+                    salt: enc.encode("ghostwire_salt_2026"),
+                    iterations: 100000,
+                    hash: "SHA-256"
+                },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt", "decrypt"]
+            );
         }
 
         async function exportKeyToBase64(key) {
@@ -443,11 +462,11 @@
                 const data = await res.json();
                 currentRoomId = data.room_id;
                 
-                // Generate Key in browser (NEVER sent to server)
-                cryptoKey = await generateCryptoKey();
+                // Derive key directly from Room ID (ensures both Link and ID users always match keys!)
+                cryptoKey = await deriveKeyFromRoomId(currentRoomId);
                 const keyStr = await exportKeyToBase64(cryptoKey);
                 
-                // Update URL with both Room ID and Key Hash
+                // Update URL with Room ID and Hash
                 const newUrl = `${window.location.protocol}//${window.location.host}/?room=${currentRoomId}#${keyStr}`;
                 window.history.replaceState(null, "", newUrl);
                 
@@ -459,55 +478,46 @@
 
         async function joinRoomManual() {
             let inputVal = document.getElementById("input-room-id").value.trim();
-            if (!inputVal) return alert("Enter Room ID or Paste Secret Invite Link");
+            if (!inputVal) return alert("Enter Room ID or Paste Invite Link");
 
-            if (inputVal.includes("?room=") || inputVal.includes("#")) {
+            // Extract Room ID whether user pasted full link or raw ID
+            if (inputVal.includes("?room=")) {
                 try {
                     const parsedUrl = new URL(inputVal.startsWith("http") ? inputVal : "https://" + inputVal);
                     const rId = parsedUrl.searchParams.get("room");
-                    const hKey = parsedUrl.hash ? parsedUrl.hash.substring(1) : "";
-                    
                     if (rId) currentRoomId = rId;
-                    if (hKey) {
-                        cryptoKey = await importKeyFromBase64(hKey);
-                        window.location.hash = hKey;
-                    }
                 } catch(e) {
-                    console.error("URL parse error", e);
+                    currentRoomId = inputVal;
                 }
             } else {
                 currentRoomId = inputVal;
-                if (window.location.hash) {
-                    try {
-                        cryptoKey = await importKeyFromBase64(window.location.hash.substring(1));
-                    } catch(e) {
-                        console.error("Key import failed", e);
-                    }
-                }
             }
 
-            if (!cryptoKey && !window.location.hash) {
-                alert("⚠️ ENCRYPTION KEY MISSING!\n\nGhostWire requires the secret cryptographic hash. Please use the full Secret Invite Link.");
-                return;
+            // Always derive or load matching key
+            try {
+                cryptoKey = await deriveKeyFromRoomId(currentRoomId);
+                const keyStr = await exportKeyToBase64(cryptoKey);
+                window.location.hash = keyStr;
+            } catch(e) {
+                console.error("Key derivation error", e);
             }
 
             startChat();
         }
 
-        // Auto-join if URL has ?room=... and #key...
+        // Auto-join if URL has ?room=...
         window.addEventListener("DOMContentLoaded", async () => {
             const urlParams = new URLSearchParams(window.location.search);
             const roomIdParam = urlParams.get("room");
-            const hashKey = window.location.hash ? window.location.hash.substring(1) : "";
 
             if (roomIdParam) {
                 currentRoomId = roomIdParam;
-                if (hashKey) {
-                    try {
-                        cryptoKey = await importKeyFromBase64(hashKey);
-                    } catch(e) {
-                        console.error("Auto key import failed", e);
-                    }
+                try {
+                    cryptoKey = await deriveKeyFromRoomId(currentRoomId);
+                    const keyStr = await exportKeyToBase64(cryptoKey);
+                    window.location.hash = keyStr;
+                } catch(e) {
+                    console.error("Auto key derivation failed", e);
                 }
                 startChat();
             }
