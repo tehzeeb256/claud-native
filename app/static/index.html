@@ -338,52 +338,6 @@
         @media print {
             body { display: none !important; }
         }
-
-        /* CAM-BLIND OPTICAL CAMOUFLAGE (SHADOW-CRUSH & ROLLING SHUTTER JAMMER) */
-        body.cam-blind-active {
-            background: #000000 !important;
-        }
-        body.cam-blind-active .terminal-card {
-            background: #000000 !important;
-            border-color: #061209 !important;
-            box-shadow: none !important;
-        }
-        body.cam-blind-active .control-hub,
-        body.cam-blind-active .chat-box {
-            background: #000000 !important;
-            border-color: #08160c !important;
-        }
-        body.cam-blind-active .msg {
-            background: #010502 !important;
-            border: 1px solid #06150a !important;
-            box-shadow: none !important;
-        }
-        body.cam-blind-active .msg span,
-        body.cam-blind-active .msg .blur-text {
-            color: #12301c !important; /* Deep Shadow-Crush Phosphor Green */
-            text-shadow: none !important;
-            filter: none !important;
-            animation: shutter-kill 0.033s infinite alternate !important;
-        }
-        body.cam-blind-active .burn-badge {
-            background: #000000 !important;
-            border-color: #1a0804 !important;
-            color: #3b1812 !important;
-        }
-        @keyframes shutter-kill {
-            0% {
-                color: #12301c;
-                opacity: 0.93;
-            }
-            50% {
-                color: #0e2717;
-                opacity: 0.88;
-            }
-            100% {
-                color: #163620;
-                opacity: 0.98;
-            }
-        }
     </style>
 </head>
 <body>
@@ -450,14 +404,9 @@
                     <span id="status-text">WAITING_PEER</span>
                 </div>
             </div>
-            <div style="display: flex; gap: 8px;">
-                <button class="btn" style="flex: 1; font-size: 11px; padding: 7px 4px;" onclick="copyInviteLink()">
-                    [📋 COPY INVITE]
-                </button>
-                <button id="btn-cam-blind" class="btn" style="flex: 1; font-size: 11px; padding: 7px 4px; border-color: #3b82f6; color: #60a5fa;" onclick="toggleCamBlindMode()">
-                    [🕶️ CAM-BLIND: OFF]
-                </button>
-            </div>
+            <button class="btn" style="width: 100%; font-size: 11px; padding: 6px;" onclick="copyInviteLink()">
+                [COPY SECRET INVITE LINK]
+            </button>
         </div>
 
         <!-- Chat Stream -->
@@ -791,27 +740,6 @@
             alert("Secret invite link copied to clipboard!\nShare this exact link with your peer.");
         }
 
-        // ==========================================================
-        // CAM-BLIND (OPTICAL CAMOUFLAGE TOGGLE)
-        // ==========================================================
-        function toggleCamBlindMode() {
-            const isNowActive = document.body.classList.toggle("cam-blind-active");
-            const btn = document.getElementById("btn-cam-blind");
-            if (btn) {
-                if (isNowActive) {
-                    btn.textContent = "[🕶️ CAM-BLIND: ACTIVE]";
-                    btn.style.borderColor = "var(--matrix-green)";
-                    btn.style.color = "var(--matrix-green)";
-                    btn.style.boxShadow = "0 0 12px rgba(0, 255, 102, 0.4)";
-                } else {
-                    btn.textContent = "[🕶️ CAM-BLIND: OFF]";
-                    btn.style.borderColor = "#3b82f6";
-                    btn.style.color = "#60a5fa";
-                    btn.style.boxShadow = "none";
-                }
-            }
-        }
-
         function burnRoom() {
             stopHeartbeat();
             if (ws && ws.readyState === WebSocket.OPEN) {
@@ -826,7 +754,6 @@
 
         function triggerBurnScreen(reason) {
             stopHeartbeat();
-            document.body.classList.remove("cam-blind-active");
             document.body.classList.remove("screenshot-blackout");
             window.history.replaceState(null, "", window.location.pathname);
             currentRoomId = null;
