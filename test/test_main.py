@@ -169,3 +169,37 @@ def test_stale_rate_limit_purge():
     assert "stale.ip.address" not in room_creation_history
     assert "active.ip.address" in room_creation_history
     room_creation_history.clear()
+
+# 13. Test WebSocket Connection Rate Limiting (Issue #5)
+def test_websocket_rate_limiter():
+    import time
+    import pytest
+    from starlette.websockets import WebSocketDisconnect
+    from app.main import ws_connection_history, WS_RATE_LIMIT_MAX_ATTEMPTS
+
+    ws_connection_history.clear()
+    now = time.time()
+    bot_ip = "198.51.100.99"
+    headers = {"x-forwarded-for": f"{bot_ip}, 10.0.0.1"}
+
+    # Simulate bot reaching the 30 connection attempts threshold
+    ws_connection_history[bot_ip] = [now - 5.0] * WS_RATE_LIMIT_MAX_ATTEMPTS
+
+    # 31st attempt par rate limiter 1008 Policy Violation se reject karega
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws/test_room", headers=headers) as ws:
+            pass
+    assert exc_info.value.code == 1008
+
+    # Lekin normal user (fresh IP) rate limiter se block nahi hoga
+    normal_ip = "198.51.100.100"
+    normal_headers = {"x-forwarded-for": f"{normal_ip}, 10.0.0.1"}
+    assert len(ws_connection_history[normal_ip]) == 0
+
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect("/ws/test_room", headers=normal_headers) as ws:
+            pass
+    # Normal user ki attempt track hui (1 attempt) aur wo rate-limited nahi tha
+    assert len(ws_connection_history[normal_ip]) == 1
+
+    ws_connection_history.clear()

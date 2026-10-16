@@ -52,6 +52,11 @@ room_creation_history: Dict[str, List[float]] = defaultdict(list)
 RATE_LIMIT_WINDOW = 60.0  # seconds
 RATE_LIMIT_MAX_REQUESTS = 15
 
+# WebSocket Connection Rate Limiter (Max 30 connections per 60 seconds per IP)
+ws_connection_history: Dict[str, List[float]] = defaultdict(list)
+WS_RATE_LIMIT_WINDOW = 60.0  # seconds
+WS_RATE_LIMIT_MAX_ATTEMPTS = 30
+
 def extract_real_ip(request: Request | WebSocket) -> str:
     """Extract true client IP across Cloudflare, Render, AWS, Kubernetes & Reverse Proxies"""
     # 1. Cloudflare True Client IP
@@ -72,9 +77,13 @@ def extract_real_ip(request: Request | WebSocket) -> str:
 
 def purge_stale_rate_limits(now: float):
     """Issue #6: Auto-purge expired IPs to prevent in-memory RAM leaks"""
-    stale_ips = [ip for ip, timestamps in room_creation_history.items() if not timestamps or (now - timestamps[-1] >= RATE_LIMIT_WINDOW)]
-    for ip in stale_ips:
+    stale_room_ips = [ip for ip, timestamps in room_creation_history.items() if not timestamps or (now - timestamps[-1] >= RATE_LIMIT_WINDOW)]
+    for ip in stale_room_ips:
         del room_creation_history[ip]
+
+    stale_ws_ips = [ip for ip, timestamps in ws_connection_history.items() if not timestamps or (now - timestamps[-1] >= WS_RATE_LIMIT_WINDOW)]
+    for ip in stale_ws_ips:
+        del ws_connection_history[ip]
 
 # Welcome endpoint
 @app.get("/", response_class=FileResponse, tags=["general"])
@@ -186,8 +195,24 @@ def create_burner_room(request: Request):
 # 2. Live WebSocket Chat Pipe
 @app.websocket("/ws/{room_id}")
 async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
-    """Real-time encrypted message relay pipe"""
-    # Naye user ko connect karein (agar room mein pehle se 2 log hon to reject hoga)
+    """Real-time encrypted message relay pipe with anti-abuse rate limiting"""
+    client_ip = extract_real_ip(websocket)
+    now = time.time()
+
+    # Expired history purge
+    purge_stale_rate_limits(now)
+
+    # 1. Connection Rate Limiter (Max 30 connection attempts per 60s per IP)
+    recent_attempts = [t for t in ws_connection_history[client_ip] if now - t < WS_RATE_LIMIT_WINDOW]
+    if len(recent_attempts) >= WS_RATE_LIMIT_MAX_ATTEMPTS:
+        # Policy Violation (1008): Rate limit exceeded
+        await websocket.close(code=1008)
+        return
+
+    recent_attempts.append(now)
+    ws_connection_history[client_ip] = recent_attempts
+
+    # 2. Naye user ko connect karein (agar room invalid ho ya 2 log pehle se hon to reject hoga)
     connected = await manager.connect(room_id, websocket)
     if not connected:
         # 403 / Policy Violation: 3rd user ko room se bahar nikalo
