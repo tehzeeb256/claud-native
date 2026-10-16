@@ -24,6 +24,10 @@
             margin: 0;
             padding: 0;
             font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
 
         body {
@@ -661,6 +665,38 @@
         function resetToHome() {
             window.location.href = window.location.pathname;
         }
+
+        // ==========================================================
+        // ISSUE #1 FIX: ANTI-INSPECT, ANTI-COPY & DEVTOOLS SHIELD
+        // ==========================================================
+        // 1. Disable Right-Click Context Menu (Inspect Element Block)
+        document.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            return false;
+        });
+
+        // 2. Block DevTools Shortcuts (F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S)
+        document.addEventListener("keydown", (e) => {
+            if (
+                e.key === "F12" ||
+                (e.ctrlKey && e.shiftKey && (e.key === "I" || e.key === "i" || e.key === "J" || e.key === "j" || e.key === "C" || e.key === "c")) ||
+                (e.ctrlKey && (e.key === "u" || e.key === "U" || e.key === "s" || e.key === "S"))
+            ) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        });
+
+        // 3. Prevent Copy Event on Chat Box
+        document.addEventListener("copy", (e) => {
+            // Sirf invite link copy allow karein, baqi sab block
+            if (document.activeElement && document.activeElement.tagName === "INPUT") {
+                return true;
+            }
+            e.preventDefault();
+            return false;
+        });
     </script>
 </body>
 </html>
