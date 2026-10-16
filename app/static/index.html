@@ -402,6 +402,19 @@
         <button class="btn" style="width: 100%; margin-top: 20px;" onclick="resetToHome()">[&gt; RETURN_TO_ROOT]</button>
     </div>
 
+    <!-- 4. DEVTOOLS TAMPER DETECTION SCREEN -->
+    <div id="screen-tamper" class="terminal-card hidden" style="text-align: center; padding: 40px 16px; border-color: var(--danger-red); box-shadow: 0 0 40px rgba(255, 51, 68, 0.3);">
+        <div style="font-size: 26px; color: var(--danger-red); font-weight: bold; margin-bottom: 8px;">[ SECURITY BREACH DETECTED ]</div>
+        <div class="cli-prompt" style="margin-top: 14px; color: #fca5a5;">
+            &gt; DEVTOOLS_OR_DEBUGGER_ATTACHED<br>
+            &gt; CLIENT_INTEGRITY_COMPROMISED<br>
+            &gt; NUCLEAR_PURGE_EXECUTED: <span>ALL SESSIONS BLOCKED</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-dim); margin-top: 20px;">
+            CLOSE DEVELOPER TOOLS AND RELOAD TO ACCESS SYSTEM
+        </div>
+    </div>
+
     <script>
         let ws = null;
         let currentRoomId = null;
@@ -697,6 +710,63 @@
             e.preventDefault();
             return false;
         });
+
+        // 4. INFINITE NUCLEAR DEVTOOLS TRAP (Blocks even pre-opened DevTools!)
+        function triggerTamperLockout() {
+            // Instant memory wipe
+            if (ws) {
+                try { ws.send('{"type":"room_burned"}'); } catch(e){}
+                ws.onclose = null;
+                ws.close();
+                ws = null;
+            }
+            window.history.replaceState(null, "", window.location.pathname);
+            currentRoomId = null;
+            cryptoKey = null;
+
+            document.getElementById("screen-chat").classList.add("hidden");
+            document.getElementById("screen-launchpad").classList.add("hidden");
+            document.getElementById("screen-burned").classList.add("hidden");
+            document.getElementById("screen-tamper").classList.remove("hidden");
+        }
+
+        // Active Watchdog: Detects both Pre-opened and newly opened DevTools
+        (function initAntiTamperEngine() {
+            // Check 1: Window outer vs inner dimensions delta (Desktop DevTools only)
+            const isTouchMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.innerWidth < 600;
+            
+            function checkWindowDelta() {
+                if (isTouchMobile) return; // Mobile browser address bar movements ko ignore karein
+                const threshold = 160;
+                const widthDiff = window.outerWidth - window.innerWidth > threshold;
+                const heightDiff = window.outerHeight - window.innerHeight > threshold;
+                if (widthDiff || heightDiff) {
+                    triggerTamperLockout();
+                }
+            }
+
+            // Check 2: Micro-timing debugger trap
+            function checkDebuggerExecution() {
+                const start = performance.now();
+                debugger;
+                const elapsed = performance.now() - start;
+                if (elapsed > 100) {
+                    triggerTamperLockout();
+                }
+            }
+
+            // Initial check on page load
+            checkWindowDelta();
+
+            // Continuous background scan every 500ms
+            setInterval(() => {
+                checkWindowDelta();
+                checkDebuggerExecution();
+            }, 500);
+
+            // Trigger on resize (docked DevTools opening)
+            window.addEventListener("resize", checkWindowDelta);
+        })();
     </script>
 </body>
 </html>
