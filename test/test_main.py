@@ -94,3 +94,32 @@ def test_rate_limiter():
     assert "Too many room creation requests" in rate_limited_res.json()["detail"]
     
     room_creation_history.clear()
+
+# 9. Test Dead Man's Switch Heartbeat (Ping-Pong)
+def test_websocket_heartbeat_ping_pong():
+    create_res = client.post("/api/room/create")
+    room_id = create_res.json()["room_id"]
+
+    with client.websocket_connect(f"/ws/{room_id}") as ws1:
+        # Ping bheinjein aur pong verify karein
+        ws1.send_text('{"type": "ping"}')
+        pong_res = ws1.receive_text()
+        assert pong_res == '{"type": "pong"}'
+
+# 10. Test Instant Nuclear Purge Broadcast
+def test_instant_burn_broadcast():
+    create_res = client.post("/api/room/create")
+    room_id = create_res.json()["room_id"]
+
+    with client.websocket_connect(f"/ws/{room_id}") as ws1:
+        with client.websocket_connect(f"/ws/{room_id}") as ws2:
+            # Drain join messages
+            ws1.receive_text()
+            ws2.receive_text()
+
+            # User 1 burns room with instant broadcast command
+            ws1.send_text('{"type": "room_burned"}')
+
+            # User 2 should immediately receive room_burned
+            burn_event = ws2.receive_text()
+            assert "room_burned" in burn_event

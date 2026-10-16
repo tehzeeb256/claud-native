@@ -118,9 +118,12 @@ class ConnectionManager:
     async def broadcast(self, room_id: str, message: str, sender: WebSocket):
         """Encrypted message ko doosre partner tak relay karna"""
         if room_id in self.active_rooms:
-            for connection in self.active_rooms[room_id]:
+            for connection in list(self.active_rooms[room_id]):
                 if connection != sender:
-                    await connection.send_text(message)
+                    try:
+                        await connection.send_text(message)
+                    except Exception:
+                        pass
 
 manager = ConnectionManager()
 
@@ -172,9 +175,21 @@ async def websocket_chat_endpoint(websocket: WebSocket, room_id: str):
     try:
         # Jab tak dono chat kar rahe hain, messages receive aur forward karein
         while True:
-            # Client se encrypted message receive karein
+            # Client se message receive karein
             ciphertext = await websocket.receive_text()
-            # Doosre partner tak broadcast karein
+
+            # 1. Dead Man's Switch Pulse (Heartbeat Ping-Pong)
+            if '"type":"ping"' in ciphertext or '"type": "ping"' in ciphertext:
+                await websocket.send_text('{"type": "pong"}')
+                continue
+
+            # 2. Zero-Delay Instant Burn Command
+            if '"type":"room_burned"' in ciphertext or '"type": "room_burned"' in ciphertext:
+                await manager.broadcast(room_id, '{"type": "room_burned"}', sender=websocket)
+                manager.disconnect(room_id, websocket)
+                break
+
+            # 3. Doosre partner tak encrypted message relay karein
             await manager.broadcast(room_id, ciphertext, sender=websocket)
 
     except WebSocketDisconnect:

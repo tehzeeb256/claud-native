@@ -394,7 +394,7 @@
     <!-- 3. ASH SCREEN -->
     <div id="screen-burned" class="terminal-card hidden" style="text-align: center; padding: 40px 16px;">
         <div style="font-size: 28px; color: var(--danger-red); margin-bottom: 8px;">[ SYSTEM INCINERATED ]</div>
-        <div class="cli-prompt" style="margin-top: 10px;">
+        <div id="burn-reason-detail" class="cli-prompt" style="margin-top: 10px;">
             &gt; ALL_MEMORY_OVERWRITTEN_WITH_ZEROS<br>
             &gt; CRYPTO_KEYS_DESTROYED<br>
             &gt; ZERO_TRACES_REMAIN
@@ -419,6 +419,8 @@
         let ws = null;
         let currentRoomId = null;
         let cryptoKey = null;
+        let heartbeatTimer = null;
+        let lastPongTimestamp = 0;
 
         // --- WEB CRYPTO E2EE (Deterministic Derivation from Room ID) ---
         async function deriveKeyFromRoomId(roomId) {
@@ -554,6 +556,42 @@
             box.scrollTop = box.scrollHeight;
         }
 
+        // --- ISSUE #2: DEAD MAN'S SWITCH (HEARTBEAT WATCHDOG) ---
+        function startHeartbeat() {
+            lastPongTimestamp = Date.now();
+            if (heartbeatTimer) clearInterval(heartbeatTimer);
+
+            heartbeatTimer = setInterval(() => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) {
+                    stopHeartbeat();
+                    triggerBurnScreen("OFFLINE_DISCONNECT");
+                    return;
+                }
+
+                // Agar 4 seconds se zyada response na aye -> Dead Man's Switch Triggered!
+                if (Date.now() - lastPongTimestamp > 4000) {
+                    console.warn("[SECURITY] Heartbeat lost. Incinerating session.");
+                    stopHeartbeat();
+                    triggerBurnScreen("OFFLINE_DISCONNECT");
+                    return;
+                }
+
+                try {
+                    ws.send(JSON.stringify({ type: "ping" }));
+                } catch (e) {
+                    stopHeartbeat();
+                    triggerBurnScreen("OFFLINE_DISCONNECT");
+                }
+            }, 2000);
+        }
+
+        function stopHeartbeat() {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        }
+
         function startChat() {
             document.getElementById("screen-launchpad").classList.add("hidden");
             document.getElementById("screen-chat").classList.remove("hidden");
@@ -563,21 +601,31 @@
             ws = new WebSocket(`${protocol}//${window.location.host}/ws/${currentRoomId}`);
 
             ws.onopen = () => {
-                // Socket open
+                startHeartbeat();
             };
 
             ws.onmessage = async (event) => {
                 const raw = event.data;
-                if (raw.includes("room_burned")) {
-                    triggerBurnScreen();
+
+                // 1. Heartbeat Pong Acknowledgment
+                if (raw.includes('"type":"pong"') || raw.includes('"type": "pong"')) {
+                    lastPongTimestamp = Date.now();
                     return;
                 }
 
+                // 2. Room Burned Notification (Peer or Server)
+                if (raw.includes("room_burned")) {
+                    triggerBurnScreen("PEER_BURNED");
+                    return;
+                }
+
+                // 3. Peer Connection Established
                 if (raw.includes('"type":"peer_joined"') || raw.includes('"type": "peer_joined"')) {
                     markPeerConnected();
                     return;
                 }
 
+                // 4. Encrypted Secret Message
                 try {
                     const decrypted = await decryptText(raw, cryptoKey);
                     const parsed = JSON.parse(decrypted);
@@ -587,8 +635,12 @@
                 }
             };
 
+            ws.onerror = () => {
+                triggerBurnScreen("OFFLINE_DISCONNECT");
+            };
+
             ws.onclose = () => {
-                triggerBurnScreen();
+                triggerBurnScreen("PEER_BURNED");
             };
         }
 
@@ -657,21 +709,49 @@
         }
 
         function burnRoom() {
-            if (ws) ws.close();
-            triggerBurnScreen();
+            stopHeartbeat();
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    // Send instant nuke command before socket closes (0ms delay)
+                    ws.send(JSON.stringify({ type: "room_burned" }));
+                } catch(e) {}
+                try { ws.close(); } catch(e) {}
+            }
+            triggerBurnScreen("OPERATOR_BURN");
         }
 
-        function triggerBurnScreen() {
+        function triggerBurnScreen(reason) {
+            stopHeartbeat();
             window.history.replaceState(null, "", window.location.pathname);
             currentRoomId = null;
             cryptoKey = null;
             if (ws) {
+                ws.onopen = null;
+                ws.onmessage = null;
+                ws.onerror = null;
                 ws.onclose = null;
-                ws.close();
+                try { ws.close(); } catch(e) {}
                 ws = null;
             }
+
+            // CRITICAL ANTI-ZOMBIE FIX: Purge decrypted messages from RAM and DOM immediately
+            const chatBox = document.getElementById("chat-box");
+            if (chatBox) chatBox.innerHTML = "";
+
+            const reasonEl = document.getElementById("burn-reason-detail");
+            if (reasonEl) {
+                if (reason === "OFFLINE_DROP" || reason === "OFFLINE_DISCONNECT") {
+                    reasonEl.innerHTML = "&gt; CONNECTION_SEVERED: NETWORK_DROPPED_AUTO_BURN<br>&gt; DEAD_MANS_SWITCH_TRIGGERED (NO_ZOMBIE_TRACES)<br>&gt; ALL_MEMORY_OVERWRITTEN_WITH_ZEROS";
+                } else if (reason === "PEER_BURNED") {
+                    reasonEl.innerHTML = "&gt; PEER_DISCONNECTED_OR_BURNED_ROOM<br>&gt; SESSION_IRREVOCABLY_TERMINATED<br>&gt; ALL_MEMORY_OVERWRITTEN_WITH_ZEROS";
+                } else {
+                    reasonEl.innerHTML = "&gt; ALL_MEMORY_OVERWRITTEN_WITH_ZEROS<br>&gt; CRYPTO_KEYS_DESTROYED<br>&gt; ZERO_TRACES_REMAIN";
+                }
+            }
+
             document.getElementById("screen-chat").classList.add("hidden");
             document.getElementById("screen-launchpad").classList.add("hidden");
+            document.getElementById("screen-tamper").classList.add("hidden");
             document.getElementById("screen-burned").classList.remove("hidden");
         }
 
@@ -767,6 +847,17 @@
             // Trigger on resize (docked DevTools opening)
             window.addEventListener("resize", checkWindowDelta);
         })();
+
+        // ==========================================================
+        // ISSUE #2 FIX: NETWORK DROP DEAD MAN'S SWITCH
+        // ==========================================================
+        // Device ka Wi-Fi, Mobile Data ya Network unplug hotay hi instant incineration
+        window.addEventListener("offline", () => {
+            if (currentRoomId || ws) {
+                console.warn("[SECURITY] OS offline event detected. Purging room.");
+                triggerBurnScreen("OFFLINE_DROP");
+            }
+        });
     </script>
 </body>
 </html>
