@@ -309,9 +309,41 @@
         .spec-item span { color: var(--matrix-green); }
 
         .hidden { display: none !important; }
+
+        /* GHOST-BLINK ANTI-SCREENSHOT BLACKOUT SHIELD */
+        #screen-blackout-shield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000000 !important;
+            z-index: 99999999;
+            display: none;
+            pointer-events: none;
+        }
+        body.screenshot-blackout #screen-blackout-shield {
+            display: block !important;
+            pointer-events: all !important;
+        }
+        body.screenshot-blackout .terminal-card,
+        body.screenshot-blackout .chat-box,
+        body.screenshot-blackout .msg {
+            visibility: hidden !important;
+            filter: blur(40px) !important;
+            opacity: 0 !important;
+        }
+
+        /* Anti-Print & Anti-PDF Export */
+        @media print {
+            body { display: none !important; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- GHOST-BLINK BLACKOUT OVERLAY -->
+    <div id="screen-blackout-shield"></div>
 
     <!-- 1. LAUNCHPAD SCREEN (Terminal Home) -->
     <div id="screen-launchpad" class="terminal-card">
@@ -856,6 +888,65 @@
             if (currentRoomId || ws) {
                 console.warn("[SECURITY] OS offline event detected. Purging room.");
                 triggerBurnScreen("OFFLINE_DROP");
+            }
+        });
+
+        // ==========================================================
+        // GHOST-BLINK ANTI-SCREENSHOT & OS FOCUS TRAP
+        // ==========================================================
+        let blackoutTimer = null;
+
+        function triggerBlackout() {
+            document.body.classList.add("screenshot-blackout");
+        }
+
+        function restoreFromBlackout() {
+            if (blackoutTimer) clearTimeout(blackoutTimer);
+            // 250ms grace period: Mobile OS hardware screenshot animation
+            // black frame ko hi buffer mein capture kar ke save karay
+            blackoutTimer = setTimeout(() => {
+                if (document.visibilityState === "visible") {
+                    document.body.classList.remove("screenshot-blackout");
+                }
+            }, 250);
+        }
+
+        // 1. Mobile OS Hardware Buttons (Power + VolDown) & Focus Steal Trap
+        window.addEventListener("blur", () => {
+            if (currentRoomId || ws) {
+                triggerBlackout();
+            }
+        });
+
+        window.addEventListener("focus", () => {
+            restoreFromBlackout();
+        });
+
+        // 2. Tab Backgrounding / Notification Shade / Screenshot Overlay Trap
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "hidden") {
+                triggerBlackout();
+            } else {
+                restoreFromBlackout();
+            }
+        });
+
+        // 3. Mobile Multi-Touch / 3-Finger Screenshot Gesture Interceptor
+        window.addEventListener("touchcancel", () => {
+            if (currentRoomId || ws) {
+                triggerBlackout();
+                restoreFromBlackout();
+            }
+        });
+
+        // 4. Desktop PrintScreen & Clipboard Shield
+        document.addEventListener("keyup", (e) => {
+            if (e.key === "PrintScreen" || e.keyCode === 44) {
+                triggerBlackout();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    try { navigator.clipboard.writeText("[ GHOSTWIRE SECURITY: SCREENSHOT CAPTURE VOID ]"); } catch(err){}
+                }
+                setTimeout(restoreFromBlackout, 1200);
             }
         });
     </script>
