@@ -123,3 +123,49 @@ def test_instant_burn_broadcast():
             # User 2 should immediately receive room_burned
             burn_event = ws2.receive_text()
             assert "room_burned" in burn_event
+
+# 11. Test Real IP Extraction via Cloud Proxy Headers (Issue #4)
+def test_real_ip_proxy_header_rate_limiting():
+    from app.main import room_creation_history
+    room_creation_history.clear()
+
+    user_a_ip = "203.0.113.195"
+    user_b_ip = "198.51.100.42"
+
+    # User A 15 requests bhejta hai via proxy
+    for _ in range(15):
+        res = client.post("/api/room/create", headers={"x-forwarded-for": f"{user_a_ip}, 10.0.0.1"})
+        assert res.status_code == 200
+
+    # User A ka 16th request block hona chahiye
+    blocked_res = client.post("/api/room/create", headers={"x-forwarded-for": f"{user_a_ip}, 10.0.0.1"})
+    assert blocked_res.status_code == 429
+
+    # Lekin User B (same proxy se) block NAHI hona chahiye! (No DoS on innocent users)
+    user_b_res = client.post("/api/room/create", headers={"x-forwarded-for": f"{user_b_ip}, 10.0.0.1"})
+    assert user_b_res.status_code == 200
+
+    # Cloudflare CF-Connecting-IP check
+    cf_user = "192.0.2.1"
+    cf_res = client.post("/api/room/create", headers={"cf-connecting-ip": cf_user})
+    assert cf_res.status_code == 200
+    assert cf_user in room_creation_history
+
+    room_creation_history.clear()
+
+# 12. Test Auto-Purge of Stale Rate Limit History (Issue #6)
+def test_stale_rate_limit_purge():
+    import time
+    from app.main import room_creation_history, purge_stale_rate_limits
+
+    room_creation_history.clear()
+    now = time.time()
+    # Add an expired IP (older than 60 seconds)
+    room_creation_history["stale.ip.address"] = [now - 120.0]
+    room_creation_history["active.ip.address"] = [now]
+
+    purge_stale_rate_limits(now)
+
+    assert "stale.ip.address" not in room_creation_history
+    assert "active.ip.address" in room_creation_history
+    room_creation_history.clear()

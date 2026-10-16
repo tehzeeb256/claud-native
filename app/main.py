@@ -52,6 +52,30 @@ room_creation_history: Dict[str, List[float]] = defaultdict(list)
 RATE_LIMIT_WINDOW = 60.0  # seconds
 RATE_LIMIT_MAX_REQUESTS = 15
 
+def extract_real_ip(request: Request | WebSocket) -> str:
+    """Extract true client IP across Cloudflare, Render, AWS, Kubernetes & Reverse Proxies"""
+    # 1. Cloudflare True Client IP
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip and cf_ip.strip():
+        return cf_ip.split(",")[0].strip()
+
+    # 2. X-Forwarded-For (First IP is the true originating client)
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded and forwarded.strip():
+        return forwarded.split(",")[0].strip()
+
+    # 3. Direct client host fallback
+    if request.client and request.client.host:
+        return request.client.host
+
+    return "unknown"
+
+def purge_stale_rate_limits(now: float):
+    """Issue #6: Auto-purge expired IPs to prevent in-memory RAM leaks"""
+    stale_ips = [ip for ip, timestamps in room_creation_history.items() if not timestamps or (now - timestamps[-1] >= RATE_LIMIT_WINDOW)]
+    for ip in stale_ips:
+        del room_creation_history[ip]
+
 # Welcome endpoint
 @app.get("/", response_class=FileResponse, tags=["general"])
 def read_root():
@@ -134,10 +158,13 @@ manager = ConnectionManager()
 # 1. Naya Room Banane ka Endpoint (With DDoS Rate Limiting)
 @app.post("/api/room/create", tags=["burner"])
 def create_burner_room(request: Request):
-    """Naya 128-bit ephemeral room generate karna (DDoS & Spam Protected)"""
-    client_ip = request.client.host if request.client else "unknown"
+    """Naya 128-bit ephemeral room generate karna (DDoS & Spam Protected with Real Proxy IP Extraction)"""
+    client_ip = extract_real_ip(request)
     now = time.time()
     
+    # Auto-purge expired IPs to keep RAM footprint minimal
+    purge_stale_rate_limits(now)
+
     # Purani expired timestamps filter karein
     recent_requests = [t for t in room_creation_history[client_ip] if now - t < RATE_LIMIT_WINDOW]
     
